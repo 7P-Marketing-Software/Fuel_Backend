@@ -7,8 +7,11 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "guzzlehttp/guzzle": "7.9",
+        "kreait/firebase-php": "7.10",
         "laravel/framework": "^11.31",
         "laravel/tinker": "^2.9",
+        "nwidart/laravel-modules": "*",
         "symfony/http-kernel": "^7.2"
     },
     "require-dev": {
@@ -64,7 +67,8 @@
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true,
-            "php-http/discovery": true
+            "php-http/discovery": true,
+            "wikimedia/composer-merge-plugin": true
         }
     },
     "minimum-stability": "stable",

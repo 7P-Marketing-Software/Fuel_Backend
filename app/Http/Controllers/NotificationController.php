@@ -4,66 +4,56 @@ namespace App\Http\Controllers;
 
 use App\Models\Notification;
 
+use Illuminate\Support\Facades\Log;
+use Kreait\Firebase\Factory;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Exception\MessagingException;
+
+
 class NotificationController extends Controller
 {
+
     public function sendTopicNotification($sender_id, $sender_type, $title, $body, string $recipient_type, ?int $recipient_id = null)
     {
+        $path = storage_path('app/private/firebase/el7a2ny_credentials.json');
+        $firebase = (new Factory)->withServiceAccount($path);
+        $messaging = $firebase->createMessaging();
 
-        if (!in_array($recipient_type, ['store', 'delivery', 'customer'])) {
-            return $this->respondError('Invalid recipient type!');
+        $topic = "ALHAGNI";
+        if (in_array($recipient_type, ['customer', 'store', 'delivery'])) {
+            $topic .= ".{$recipient_type}";
         }
-
-        $topic = "Your_project/{$recipient_type}";
-
         if ($recipient_id) {
-            $topic .= "/{$recipient_id}";
+            $topic .= ".{$recipient_id}";
         }
 
-        $fields = [
-            'to' => $topic,
-            'priority' => 'high',
+        $message = CloudMessage::fromArray([
             'notification' => [
                 'title' => $title,
                 'body' => $body,
-                'sound' => 'default',
-                'icon' => '',
-                'image' => '',
             ],
-            'data' => [
-                'title' => $title,
-                'message' => $body,
-                'sound' => 'default',
-                'icon' => '',
-                'image' => '',
-            ],
-
-        ];
-        $API_ACCESS_KEY = env('SERVER_API_KEY');
-        $headers = [
-            'Authorization: key=' . $API_ACCESS_KEY,
-            'Content-Type: application/json',
-        ];
-
-        // $ch = curl_init();
-        // curl_setopt($ch, CURLOPT_URL, 'https://fcm.googleapis.com/fcm/send');
-        // curl_setopt($ch, CURLOPT_POST, true);
-        // curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        // curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        // curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        // curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($fields));
-        // $result = curl_exec($ch);
-        // curl_close($ch);
-
-        $notification = Notification::create([
-            'sender_id' => $sender_id,
-            'sender_type' => $sender_type,
-            'recipient_id' => $recipient_id,
-            'recipient_type' => $recipient_type,
-            'title' => $title,
-            'body' => $body,
+            'topic' => $topic,
+            'priority' => 'high',
         ]);
 
-        return $this->respondOk($notification);
+        $notifications = [];
+
+        try {
+            $messaging->send($message);
+            $notifications[] = Notification::create([
+                'sender_id' => $sender_id,
+                'sender_type' => $sender_type,
+                'title' => $title,
+                'body' => $body,
+                'recipient_id' => $recipient_id,
+                'recipient_type' => $recipient_type,
+            ]);
+        } catch (MessagingException $e) {
+            Log::error("Firebase Messaging Error: " . $e->getMessage());
+        } catch (\Exception $e) {
+            Log::error("Notification Creation Error: " . $e->getMessage());
+        }
+        return $notifications;
     }
 
     public function getNotifications()
