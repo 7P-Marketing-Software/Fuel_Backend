@@ -123,4 +123,35 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+
+    'providers' => [
+        Illuminate\Cache\CacheServiceProvider::class,
+        Illuminate\Foundation\Providers\ArtisanServiceProvider::class,
+        Illuminate\Filesystem\FilesystemServiceProvider::class,
+        Nwidart\Modules\LaravelModulesServiceProvider::class,
+        Illuminate\Database\DatabaseServiceProvider::class,
+        Illuminate\Encryption\EncryptionServiceProvider::class,
+        Illuminate\Database\MigrationServiceProvider::class,
+        Illuminate\Foundation\Providers\FoundationServiceProvider::class,
+        Illuminate\Foundation\Providers\ComposerServiceProvider::class,
+        Illuminate\View\ViewServiceProvider::class,
+        Illuminate\Translation\TranslationServiceProvider::class,
+        Illuminate\Cookie\CookieServiceProvider::class,
+        Illuminate\Session\SessionServiceProvider::class,
+        Illuminate\Routing\RoutingServiceProvider::class,
+
+
+    ],
+
+    'aliases' => [
+        'Module' => Nwidart\Modules\Facades\Module::class,
+        'Migrator' => Illuminate\Database\Migrations\Migrator::class,
+        'View' => Illuminate\Support\Facades\View::class,
+        'Blade' => Illuminate\Support\Facades\Blade::class,
+        'Cookie' => Illuminate\Support\Facades\Cookie::class,
+        'Session' => Illuminate\Support\Facades\Session::class,
+        'Route' => Illuminate\Support\Facades\Route::class,
+
+    ],
+
 ];
