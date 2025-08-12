@@ -7,8 +7,9 @@ use App\Http\Traits\ResponsesTrait;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 
+use App\Http\Traits\MediaTrait;
+
 abstract class Controller
 {
-    //
-    use AuthorizesRequests, ResponsesTrait, ValidatesRequests, ArchiveTrait;
+    use AuthorizesRequests, ResponsesTrait, ValidatesRequests, ArchiveTrait,MediaTrait;
 }

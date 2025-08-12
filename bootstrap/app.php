@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\ExceptRole;
+use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\TrackUserActivity;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -11,7 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        $middleware->alias([
+            'ExceptRole' => ExceptRole::class,
+            'role' => RoleMiddleware::class,
+        ]);
+        $middleware->append(TrackUserActivity::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

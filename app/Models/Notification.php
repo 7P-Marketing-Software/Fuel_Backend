@@ -3,26 +3,26 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\Auth\Models\User;
 
 class Notification extends Model
 {
+    //
     protected $fillable = [
         'sender_id',
-        'sender_type',
         'recipient_id',
-        'recipient_type',
         'title',
+        'image',
         'body',
+        'extra_data',
     ];
 
+    protected $casts = [
+        'extra_data' => 'array',
+    ];
 
     public function sender()
     {
-        return $this->morphTo();
-    }
-
-    public function recipient()
-    {
-        return $this->morphTo();
+        return $this->belongTo(User::class, 'sender_id');
     }
 }
