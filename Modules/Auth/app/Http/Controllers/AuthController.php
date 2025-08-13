@@ -11,10 +11,10 @@ use Modules\Auth\Http\Requests\LoginRequest;
 use Modules\Auth\Http\Requests\ResetUserRequest;
 use Modules\Auth\Models\User;
 use Modules\Auth\Services\AuthService;
-use Modules\Auth\Services\WhatsAppService;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
+use App\Services\WhatsAppService;
 
 class AuthController extends Controller
 {
