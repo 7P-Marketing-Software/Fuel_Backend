@@ -139,8 +139,7 @@ return [
         Illuminate\Cookie\CookieServiceProvider::class,
         Illuminate\Session\SessionServiceProvider::class,
         Illuminate\Routing\RoutingServiceProvider::class,
-
-
+        Illuminate\Hashing\HashServiceProvider::class,
     ],
 
     'aliases' => [
@@ -151,7 +150,6 @@ return [
         'Cookie' => Illuminate\Support\Facades\Cookie::class,
         'Session' => Illuminate\Support\Facades\Session::class,
         'Route' => Illuminate\Support\Facades\Route::class,
-
     ],
 
 ];

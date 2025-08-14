@@ -30,7 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 
-Route::middleware(['auth:sanctum', 'role:SuperAdmin'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:Admin'])->group(function () {
 
     Route::get('/users', [UserController::class, 'getAllUsers']);
 
