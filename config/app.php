@@ -140,6 +140,7 @@ return [
         Illuminate\Session\SessionServiceProvider::class,
         Illuminate\Routing\RoutingServiceProvider::class,
         Illuminate\Hashing\HashServiceProvider::class,
+        Illuminate\Auth\AuthServiceProvider::class,
     ],
 
     'aliases' => [
