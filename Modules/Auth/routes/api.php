@@ -54,7 +54,7 @@ Route::middleware(['auth:sanctum', 'role:Admin'])->group(function () {
 
 Route::get('run-seeder',function(){
     Artisan::call('db:seed', [
-             '--class' => 'Database\\Seeders\\AdminSeeder'
+             '--class' => 'Database\\Seeders\\DatabaseSeeder'
      ]);
      return response()->json(['message' => 'Seeder run successfully']);
  });

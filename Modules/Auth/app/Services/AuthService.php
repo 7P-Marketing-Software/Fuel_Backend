@@ -3,15 +3,15 @@
 namespace Modules\Auth\Services;
 
 use App\Http\Traits\ResponsesTrait;
+use App\Http\Traits\HasDigitalOceanSpaces;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Modules\Auth\Models\User;
 use Spatie\Permission\Models\Role;
 
 class AuthService
 {
-    use ResponsesTrait;
+    use ResponsesTrait, HasDigitalOceanSpaces;
     private User $user;
     public function __construct(User $user)
     {
@@ -21,9 +21,12 @@ class AuthService
     {
         if ($request->file('profile_image')) {
             $file = $request->file('profile_image');
-            $fileName = 'Profile_Image' . time() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('Profile_Images', $fileName, 'public');
-            $fullPath = Storage::url($path);
+            $fullPath = $this->uploadToSpaces(
+                $file,
+                'User',
+                'profile_images',
+                'profile_image_' . time() . '.' . $file->getClientOriginalExtension()
+            );
         }
 
         $user = User::create([

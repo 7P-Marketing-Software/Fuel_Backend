@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Helpers\ActivityLogger;
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Services\OneSignalService;
@@ -17,8 +16,6 @@ class OneSignalController extends Controller
         $this->oneSignalService = $oneSignalService;
     }
 
-
-    // Send notification to all users
     public function sendPushNotificationToAll(Request $request)
     {
         $request->validate([
@@ -45,7 +42,6 @@ class OneSignalController extends Controller
 
     public function notifyUser(Request $request)
     {
-
         $request->validate([
             'title' => 'required|string',
             'message' => 'required|string',
@@ -56,15 +52,15 @@ class OneSignalController extends Controller
         $recipientIds = $request->recipientIds;
         $title =  $request->title;
         $message =  $request->message;
-        $extraData = $request->extra_data ?? null;    
-    
+        $extraData = $request->extra_data ?? null;
+
         if ($request->hasFile('image')) {
             $file_name = $this->upload_files($request->file('image'), 'notifications/image');
             $image = $file_name;
         }
         $image = $image ?? null;
         $response = $this->oneSignalService->sendNotificationToUser($recipientIds, $title, $message, $image,$extraData);
-        return $this->respondOk($response, "Notifications sent successfully.");
+        return $this->respondOk($response, __('messages.Notifications_sent_successfully'));
     }
 
     public function getAllNotifications(Request $request)
@@ -87,7 +83,7 @@ class OneSignalController extends Controller
         }
 
         $notifications = $notificationQuery->paginate();
-        return $this->respondOk($notifications, "Notifications retrieved successfully.");
+        return $this->respondOk($notifications, __('messages.Notifications_retrieved_successfully'));
     }
 
 

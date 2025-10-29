@@ -17,6 +17,7 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\Access\
     use HasApiTokens, HasRoles, HasFactory, Notifiable, SoftDeletes, ArchiveTrait, StatisticsTrait;
 
     protected $guard_name = 'web';
+    
     protected $fillable = [
         'name',
         'email',

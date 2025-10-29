@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Modules\Auth\Models\User;
 
 class UserController extends Controller
@@ -49,10 +48,16 @@ class UserController extends Controller
         $user = User::find(Auth::id());
 
         if ($request->file('profile_image')) {
+            if($user->profile_image){
+                $this->deleteFromSpaces($user->profile_image);
+            }
             $file = $request->file('profile_image');
-            $fileName = 'Profile_Image' . time() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('Profile_Images', $fileName, 'public');
-            $fullPath = Storage::url($path);
+            $fullPath = $this->uploadToSpaces(
+                $file,
+                'User',
+                'profile_images',
+                'profile_image_' . time() . '.' . $file->getClientOriginalExtension()
+            );
             $user->profile_image = $fullPath;
         }
 
@@ -83,6 +88,9 @@ class UserController extends Controller
     {
        $userId = Auth::id();
        $user = User::findOrFail($userId);
+       if($user->profile_image){
+            $this->deleteFromSpaces($user->profile_image);
+        }
        $user->delete();
        return $this->respondOk(null, 'User deleted successfully');
     }
