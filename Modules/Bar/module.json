@@ -1,0 +1,11 @@
+{
+    "name": "Bar",
+    "alias": "bar",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Bar\\Providers\\BarServiceProvider"
+    ],
+    "files": []
+}
