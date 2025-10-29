@@ -36,6 +36,7 @@ class AuthService
             'phone' => $request->input('phone', null),
             'password' => Hash::make($request->input('password')),
             'profile_image' => isset($fullPath) ? $fullPath : null,
+            'gender' => $request->input('gender', null),
         ]);
 
         $token = $user->createToken('User Access Token')->plainTextToken;
@@ -65,9 +66,8 @@ class AuthService
             return null;
         }
         
-
         if (!Hash::check($request->input('password'), $user->password)) {
-                return null;
+            return null;
         }
 
         $token = $user->createToken('Access Token')->plainTextToken;

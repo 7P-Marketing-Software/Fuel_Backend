@@ -81,7 +81,7 @@ class AuthController extends Controller
         if (!$user) {
             return $this->respondNotFound(null, 'Phone number not found.');
         }
-     
+
         $maxAttempts = 5;
         $lockDuration = 5;
 
@@ -102,7 +102,7 @@ class AuthController extends Controller
             $user->update(['otp_sent_at' => now()]);
             return $this->respondNotFound(null, 'Invalid OTP');
         }
-        
+
         $user->update([
             'otp' => null,
             'otp_expires_at' => null,
@@ -175,50 +175,5 @@ class AuthController extends Controller
         }
 
         return $this->respondNotFound(null, 'Something went wrong please try again later');
-    }
-
-    public function redirectToGoogle(Request $request)
-    {
-        $phone = $request->phone;
-        $redirectUrl = Socialite::driver('google')
-            ->stateless()
-            ->with(['state' => base64_encode(json_encode($phone))])
-            ->redirect()
-            ->getTargetUrl();
-        return $this->respondOk(['url' => $redirectUrl], 'Redirecting to Google');
-    }
-
-
-    public function handleGoogleCallback(Request $request)
-    {
-
-        try {
-            $googleUser = Socialite::driver('google')->stateless()->user();
-            $user = User::where('email', $googleUser->getEmail())->first();
-
-            if (!$user) {
-                $state = $request->input('state');
-                $phone = $state ? json_decode(base64_decode($state), true) : null;
-
-                $user = User::create([
-                    'name' => $googleUser->getName(),
-                    'email' => $googleUser->getEmail(),
-                    'password' =>bcrypt(Str::random(16)),
-                    'country_code' => '+20',
-                    'phone' => $phone,
-                ]);
-                $studentRole = Role::where('name', 'User')->first();
-                $user->assignRole($studentRole);
-                $user->save();
-            }
-
-            $token = $user->createToken('User Access Token')->plainTextToken;
-           
-            return redirect()->away(env('FRONT_URL').'?token=$token');
-            
-
-        } catch (\Exception $e) {
-             return $this->respondNotFound(null, 'Google login failed: ' . $e->getMessage());
-        }
     }
 }

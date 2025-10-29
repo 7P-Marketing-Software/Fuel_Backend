@@ -3,7 +3,6 @@
 namespace Modules\Auth\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class RegisterRequest extends FormRequest
 {
@@ -16,11 +15,11 @@ class RegisterRequest extends FormRequest
             'phone' => ['required_without:email', 'string','unique:users,phone'],
             'password' => 'required|string|min:8',
             'profile_image' =>'nullable|image|mimes:png,jpg,svg',
+            'gender' => 'nullable|in:male,female'
         ];
 
         return $rules;
     }
-
 
     public function authorize(): bool
     {

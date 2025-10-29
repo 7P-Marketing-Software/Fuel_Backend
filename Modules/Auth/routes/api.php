@@ -12,8 +12,6 @@ Route::prefix('auth/')->group(function () {
     Route::post('forget-password', [AuthController::class, 'forgetPassword']);
     Route::post('check-otp', [AuthController::class, 'checkPhoneOTPForgetPassword']);
     Route::post('resend-otp', [AuthController::class, 'resendOtp']);
-    Route::post('google', [AuthController::class, 'redirectToGoogle']);
-    Route::get('google/callback', [AuthController::class, 'handleGoogleCallback']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {

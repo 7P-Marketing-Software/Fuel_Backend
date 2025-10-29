@@ -12,7 +12,7 @@ class UserController extends Controller
 {
     public function getAllUsers(Request $request)
     {
-        $query = User::with(['roles', 'student']);
+        $query = User::with(['roles']);
 
         if ($request->has('name') && $request->name) {
             $query->where('name', 'like', '%' . $request->name . '%');
@@ -31,7 +31,7 @@ class UserController extends Controller
 
     public function showProfile()
     {
-        $user = User::with('student')->find(Auth::id());
+        $user = User::find(Auth::id());
         return $this->respondOk($user, 'User Profile');
     }
 

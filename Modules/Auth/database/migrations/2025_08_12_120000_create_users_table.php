@@ -26,7 +26,6 @@ return new class extends Migration
             $table->timestamp('otp_expires_at')->nullable();
             $table->integer('otp_attempts')->default(0);
             $table->timestamp('last_active_at')->nullable();
-            $table->string('google_id')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });
