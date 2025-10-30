@@ -142,6 +142,7 @@ return [
         Illuminate\Hashing\HashServiceProvider::class,
         Illuminate\Auth\AuthServiceProvider::class,
         Illuminate\Validation\ValidationServiceProvider::class,
+        Illuminate\Queue\QueueServiceProvider::class,
     ],
 
     'aliases' => [

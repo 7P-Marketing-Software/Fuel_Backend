@@ -1,0 +1,11 @@
+{
+    "name": "PTS",
+    "alias": "pts",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\PTS\\Providers\\PTSServiceProvider"
+    ],
+    "files": []
+}
