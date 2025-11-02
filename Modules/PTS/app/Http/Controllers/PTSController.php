@@ -3,79 +3,112 @@
 namespace Modules\PTS\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Modules\PTS\Models\PTSLog;
-use Modules\PTS\Models\PTSMeasurement;
-use Modules\PTS\Models\WebSocketSession;
 use App\Http\Controllers\Controller;
 
 class PTSController extends Controller
 {
-    /**
-     * Handle PTS-2 POST messages
-     */
-    public function handlePost(Request $request)
+    public function handleNativePTS(Request $request)
     {
-        $data = $request->json()->all();
+        $method = $request->method();
+        $uri = $request->getRequestUri();
+        
+        $headers = $request->headers->all();
 
-        $log = PTSLog::create([
-            'pts_id' => $request->header('X-Pts-Id'),
-            'method' => 'POST',
-            'uri' => '/jsonPTS',
-            'headers' => $request->headers->all(),
-            'body' => $data,
-            'ip_address' => $request->ip(),
-            'firmware_version' => $request->header('X-Pts-Firmware-Version-DateTime'),
-            'config_identifier' => $request->header('X-Pts-Configuration-Identifier'),
-            'packet_type' => $data['Packets'][0]['Type'] ?? null,
-            'packet_id' => $data['Packets'][0]['Id'] ?? null,
+        if (($uri === '/api/jsonPTS' || $uri === '/jsonPTS') && $method === 'GET') {
+            $entry = [
+                'time' => now()->toDateTimeString(),
+                'method' => $method,
+                'uri' => $uri,
+                'headers' => $headers,
+                'body' => null
+            ];
+
+            $this->saveLogEntry($entry);
+
+            // Quick HTTP response for GET requests
+            return response()->json([
+                'success' => true,
+                'message' => 'PTS-2 API Endpoint',
+                'usage' => 'Send POST requests with PTS-2 JSON format',
+                'web_socket' => 'For real-time communication, connect to: ws://127.0.0.1:8081'
+            ]);
+        }
+
+        if ($method === 'POST' && ($uri === '/api/jsonPTS' || $uri === '/jsonPTS')) {
+            $rawBody = $request->getContent();
+            $bodyJson = json_decode($rawBody, true);
+            $loggedBody = ($bodyJson !== null) ? $bodyJson : $rawBody;
+
+            $entry = [
+                'time' => now()->toDateTimeString(),
+                'method' => $method,
+                'uri' => $uri,
+                'headers' => $headers,
+                'body' => $loggedBody
+            ];
+
+            $this->saveLogEntry($entry);
+
+            $id = $bodyJson['Packets'][0]['Id'] ?? 0;
+            $type = $bodyJson['Packets'][0]['Type'] ?? null;
+
+            $response = [
+                "Protocol" => "jsonPTS",
+                "Packets" => [[
+                    "Id" => $id,
+                    "Type" => $type,
+                    "Error" => false,
+                    "Message" => "OK"
+                ]]
+            ];
+
+            $responseBody = json_encode($response);
+
+            return response($responseBody, 200)->withHeaders([
+                'Content-Type' => 'application/json; charset=utf-8',
+                'Connection' => 'close',
+                'Content-Length' => strlen($responseBody)
+            ]);
+        }
+
+        return response('Not Found', 404);
+    }
+
+    public function viewLogs()
+    {
+        $logFile = storage_path('logs/pts2_log.txt');
+
+        if (!file_exists($logFile)) {
+            return $this->respondNotFound(null,"No requests logged yet.");
+        }
+
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        
+        $allEntries = array_map(function($line) {
+            return json_decode($line, true);
+        }, $lines);
+
+        $allEntries = array_reverse($allEntries);
+
+        return $this->respondOk([
+            'total_entries' => count($allEntries),
+            'entries' => $allEntries
         ]);
-
-        return response()->json([
-            "Protocol" => "jsonPTS",
-            "Packets" => [[
-                "Id" => $data['Packets'][0]['Id'] ?? 0,
-                "Type" => $data['Packets'][0]['Type'] ?? null,
-                "Error" => false,
-                "Message" => "OK"
-            ]]
-        ]);
     }
 
-    /**
-     * Handle WebSocket handshake attempts via HTTP
-     */
-    public function handleWebSocketHandshake(Request $request)
+    private function saveLogEntry(array $entry)
     {
-        return response()->json([
-            'error' => 'Use WebSocket connection on ws://127.0.0.1:8081',
-            'websocket_url' => 'ws://127.0.0.1:8081'
-        ], 426);
-    }
+        $logFile = storage_path('logs/pts2_log.txt');
 
-    /**
-     * Get PTS logs
-     */
-    public function getLogs(Request $request)
-    {
-        $logs = PTSLog::orderBy('created_at', 'desc')->paginate(20);
+        $lines = file_exists($logFile) ?
+            file($logFile, FILE_IGNORE_NEW_LINES) : [];
 
-        return response()->json($logs);
-    }
+        $lines[] = json_encode($entry, JSON_UNESCAPED_SLASHES);
 
-    public function getSessions(Request $request)
-    {
-        $sessions = WebSocketSession::orderBy('connected_at', 'desc')->paginate(20);
+        if (count($lines) > 10) {
+            $lines = array_slice($lines, -10);
+        }
 
-        return response()->json($sessions);
-    }
-
-    /**
-     * Get measurements
-     */
-    public function getMeasurements(Request $request)
-    {
-        $measurements = PTSMeasurement::orderBy('measured_at', 'desc')->paginate();
-
-        return response()->json($measurements);
+        file_put_contents($logFile, implode(PHP_EOL, $lines) . PHP_EOL);
     }
 }
