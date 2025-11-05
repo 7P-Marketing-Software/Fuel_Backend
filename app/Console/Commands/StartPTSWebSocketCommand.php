@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\WebSocket\PTSWebSocketHandler;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class StartPTSWebSocketCommand extends Command
 {
@@ -26,11 +27,14 @@ class StartPTSWebSocketCommand extends Command
         $this->line(str_repeat("─", 60));
         
         try {
-            $handler = new PTSWebSocketHandler();
+            $handler = new PTSWebSocketHandler($host, $port);
             $handler->run();
             
         } catch (\Exception $e) {
             $this->error("❌ Failed to start server: " . $e->getMessage());
+            Log::channel('pts')->error('Failed to start WebSocket server', [
+                'error' => $e->getMessage()
+            ]);
             return 1;
         }
 

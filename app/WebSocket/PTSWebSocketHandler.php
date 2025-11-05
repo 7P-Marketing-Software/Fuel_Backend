@@ -10,19 +10,18 @@ use Carbon\Carbon;
 class PTSWebSocketHandler
 {
     protected $worker;
-    protected $dataProcessor;
     protected $sessions = [];
 
-    public function __construct()
+    public function __construct($host = '0.0.0.0', $port = 8081)
     {
-        $this->initializeWorker();
+        $this->initializeWorker($host, $port);
     }
 
-    private function initializeWorker()
+    private function initializeWorker($host, $port)
     {
-        $this->worker = new Worker("websocket://0.0.0.0:8081");
+        $this->worker = new Worker("websocket://{$host}:{$port}");
 
-        $this->worker->count = 1; // Single process for PTS
+        $this->worker->count = 1;
         $this->worker->name = 'PTS-2 WebSocket Server';
 
         // Set event handlers
@@ -30,12 +29,17 @@ class PTSWebSocketHandler
         $this->worker->onMessage = [$this, 'onMessage'];
         $this->worker->onClose = [$this, 'onClose'];
         $this->worker->onError = [$this, 'onError'];
+        $this->worker->onWorkerStart = [$this, 'onWorkerStart'];
 
         echo "🚀 PTS-2 WebSocket Server Started\n";
-        echo "📍 Endpoint: ws://0.0.0.0:8081\n";
+        echo "📍 Endpoint: ws://{$host}:{$port}\n";
         echo "📡 Protocol: PTS-2 JSON (Native)\n";
         echo "⏰ " . Carbon::now()->toDateTimeString() . "\n";
         echo str_repeat("═", 60) . "\n";
+    }
+
+    public function onWorkerStart()
+    {
     }
 
     public function onConnect(TcpConnection $connection)
@@ -51,7 +55,7 @@ class PTSWebSocketHandler
         $this->sessions[$connection->id] = [
             'connected_at' => Carbon::now(),
             'pts_id' => 'unknown',
-            'headers' => []
+            'messages_received' => 0
         ];
 
         Log::channel('pts')->info('PTS WebSocket connected', [
@@ -110,10 +114,9 @@ class PTSWebSocketHandler
         echo "   Session: {$connection->id}\n";
         echo "   PTS ID: {$ptsId}\n";
         echo "   Duration: {$duration}s\n";
+        echo "   Messages Received: " . ($session['messages_received'] ?? 0) . "\n";
         echo "---\n";
 
-        // Store session in database if we have PTS ID
-       
         unset($this->sessions[$connection->id]);
 
         Log::channel('pts')->info('PTS WebSocket disconnected', [
@@ -151,12 +154,11 @@ class PTSWebSocketHandler
         // Update session with PTS ID
         if (isset($this->sessions[$connection->id])) {
             $this->sessions[$connection->id]['pts_id'] = $ptsId;
-            $this->sessions[$connection->id]['messages_received'] =
-                ($this->sessions[$connection->id]['messages_received'] ?? 0) + 1;
+            $this->sessions[$connection->id]['messages_received']++;
         }
         
-        // Process data (store measurements, etc.)
-        $this->dataProcessor->processMessage($data, $ptsId);
+        // TODO: Process data (store measurements, etc.)
+        // $this->dataProcessor->processMessage($data, $ptsId);
 
         // Send confirmation response
         $this->sendConfirmation($connection, $data);
