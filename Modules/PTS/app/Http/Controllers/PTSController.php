@@ -2,113 +2,202 @@
 
 namespace Modules\PTS\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Modules\PTS\Models\Pts;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class PTSController extends Controller
 {
-    public function handleNativePTS(Request $request)
+    private $apiUrl = 'https://pioneerdynamic.com/show_pts.php';
+    
+    public function fetchAndStorePTSData()
     {
-        $method = $request->method();
-        $uri = $request->getRequestUri();
-        
-        $headers = $request->headers->all();
+        try {
+            $response = Http::get($this->apiUrl);
+            
+            if (!$response->successful()) {
+                return $this->respondNotFound(null,'Failed to fetch data from external API');
+            }
+            
+            $requestsData = $this->parseHTMLResponse($response->body());
+            
+            if (empty($requestsData)) {
+                return $this->respondNotFound(null,'No data found or unable to parse response');
+            }
+            
+            $storedCount = 0;
+            $skippedCount = 0;
+            
+            foreach ($requestsData as $requestData) {
+                $exists = Pts::where('request_time', $requestData['time'])
+                            ->where('pts_id', $requestData['body']['PtsId'] ?? null)
+                            ->exists();
+                
+                if (!$exists) {
+                    $this->storePTSRequest($requestData);
+                    $storedCount++;
+                } else {
+                    $skippedCount++;
+                }
+            }
 
-        if (($uri === '/api/jsonPTS' || $uri === '/jsonPTS') && $method === 'GET') {
-            $entry = [
-                'time' => now()->toDateTimeString(),
-                'method' => $method,
-                'uri' => $uri,
-                'headers' => $headers,
-                'body' => null
-            ];
-
-            $this->saveLogEntry($entry);
-
-            // Quick HTTP response for GET requests
-            return response()->json([
-                'success' => true,
-                'message' => 'PTS-2 API Endpoint',
-                'usage' => 'Send POST requests with PTS-2 JSON format',
-                'web_socket' => 'For real-time communication, connect to: ws://127.0.0.1:8081'
-            ]);
+            return $this->respondOk([
+                'stored' => $storedCount,
+                'skipped' => $skippedCount,
+                'total_parsed' => count($requestsData)
+            ], 'PTS data fetched and stored successfully');
+                        
+        } catch (\Exception $e) {
+            Log::error('Error fetching PTS data: ' . $e->getMessage());
+            return $this->respondNotFound(null,'Error processing request: ' . $e->getMessage());
         }
-
-        if ($method === 'POST' && ($uri === '/api/jsonPTS' || $uri === '/jsonPTS')) {
-            $rawBody = $request->getContent();
-            $bodyJson = json_decode($rawBody, true);
-            $loggedBody = ($bodyJson !== null) ? $bodyJson : $rawBody;
-
-            $entry = [
-                'time' => now()->toDateTimeString(),
-                'method' => $method,
-                'uri' => $uri,
-                'headers' => $headers,
-                'body' => $loggedBody
-            ];
-
-            $this->saveLogEntry($entry);
-
-            $id = $bodyJson['Packets'][0]['Id'] ?? 0;
-            $type = $bodyJson['Packets'][0]['Type'] ?? null;
-
-            $response = [
-                "Protocol" => "jsonPTS",
-                "Packets" => [[
-                    "Id" => $id,
-                    "Type" => $type,
-                    "Error" => false,
-                    "Message" => "OK"
-                ]]
-            ];
-
-            $responseBody = json_encode($response);
-
-            return response($responseBody, 200)->withHeaders([
-                'Content-Type' => 'application/json; charset=utf-8',
-                'Connection' => 'close',
-                'Content-Length' => strlen($responseBody)
-            ]);
-        }
-
-        return response('Not Found', 404);
     }
-
-    public function viewLogs()
+    
+    /**
+     * Parse HTML response - SIMPLE AND DIRECT APPROACH
+     */
+    private function parseHTMLResponse($responseBody)
     {
-        $logFile = storage_path('logs/pts2_log.txt');
-
-        if (!file_exists($logFile)) {
-            return $this->respondNotFound(null,"No requests logged yet.");
-        }
-
-        $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $requests = [];
         
-        $allEntries = array_map(function($line) {
-            return json_decode($line, true);
-        }, $lines);
-
-        $allEntries = array_reverse($allEntries);
-
-        return $this->respondOk([
-            'total_entries' => count($allEntries),
-            'entries' => $allEntries
-        ]);
-    }
-
-    private function saveLogEntry(array $entry)
-    {
-        $logFile = storage_path('logs/pts2_log.txt');
-
-        $lines = file_exists($logFile) ?
-            file($logFile, FILE_IGNORE_NEW_LINES) : [];
-
-        $lines[] = json_encode($entry, JSON_UNESCAPED_SLASHES);
-
-        if (count($lines) > 10) {
-            $lines = array_slice($lines, -10);
+        preg_match_all('/\{[^{}]*"Protocol"[^{}]*"jsonPTS"[^{}]*\}/', $responseBody, $jsonMatches);
+        
+        preg_match_all('/\{(?:[^{}]|(?R))*\}/', $responseBody, $broadMatches);
+        
+        $allJsonStrings = array_merge($jsonMatches[0], $broadMatches[0]);
+        
+        foreach ($allJsonStrings as $jsonString) {
+            $body = $this->decodeJsonString($jsonString);
+            if ($body && isset($body['Protocol']) && $body['Protocol'] === 'jsonPTS') {
+                $requestData = $this->findRequestDataForJson($responseBody, $body, $jsonString);
+                if ($requestData) {
+                    $requests[] = $requestData;
+                }
+            }
         }
+        
+        return $requests;
+    }
+    
+    /**
+     * Find the request metadata for a JSON body
+     */
+    private function findRequestDataForJson($html, $body, $jsonString)
+    {
+        $requestData = [
+            'body' => $body,
+            'time' => null,
+            'method' => null,
+            'uri' => null,
+        ];
+        
+        $jsonPos = strpos($html, $jsonString);
+        if ($jsonPos === false) return $requestData;
+        
+        $start = max(0, $jsonPos - 2000);
+        $section = substr($html, $start, 4000);
+        
+        if (preg_match('/Time:<\/strong>\s*([^<]+)/', $section, $matches)) {
+            $requestData['time'] = trim($matches[1]);
+        }
+        
+        if (preg_match('/Method:<\/strong>\s*([^<]+)/', $section, $matches)) {
+            $requestData['method'] = trim($matches[1]);
+        }
+        
+        if (preg_match('/URI:<\/strong>\s*([^<]+)/', $section, $matches)) {
+            $requestData['uri'] = trim($matches[1]);
+        }
+        
+        return $requestData;
+    }
+    
+    
+    /**
+     * Decode JSON string with robust HTML entity handling
+     */
+    private function decodeJsonString($jsonString)
+    {
+        $jsonString = html_entity_decode($jsonString, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        
+        $jsonString = str_replace(["\n", "\r", "\t"], '', $jsonString);
+        $jsonString = preg_replace('/\s+/', ' ', $jsonString);
+        
+        $body = json_decode($jsonString, true);
+        
+        if (json_last_error() === JSON_ERROR_NONE) {
+            return $body;
+        }
+        
+        $jsonString = $this->fixJsonIssues($jsonString);
+        $body = json_decode($jsonString, true);
+        
+        if (json_last_error() === JSON_ERROR_NONE) {
+            return $body;
+        }
+        
+        Log::warning('JSON decode failed: ' . json_last_error_msg() . ' - String: ' . substr($jsonString, 0, 200));
+        return null;
+    }
+    
+    /**
+     * Fix common JSON issues
+     */
+    private function fixJsonIssues($jsonString)
+    {
+        $jsonString = preg_replace('/([^\\\])"/', '$1\"', $jsonString);
+        
+        $jsonString = preg_replace('/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/', '$1"$2"$3', $jsonString);
+        
+        return $jsonString;
+    }
+    
+    private function storePTSRequest($requestData)
+    {
+        try {
+            $pts = new Pts();
+            
+            $pts->protocol = $requestData['body']['Protocol'] ?? null;
+            $pts->pts_id = $requestData['body']['PtsId'] ?? null;
+            $pts->packets = $requestData['body']['Packets'] ?? [];
+            $pts->request_time = $requestData['time'] ?? null;
+            $pts->method = $requestData['method'] ?? null;
+            $pts->uri = $requestData['uri'] ?? null;
+            
+            $pts->save();
+            
+            Log::info('Stored PTS request - PTS ID: ' . ($pts->pts_id ?? 'Unknown') . ', Time: ' . ($pts->request_time ?? 'Unknown'));
+            
+            return $pts;
+            
+        } catch (\Exception $e) {
+            Log::error('Error storing PTS request: ' . $e->getMessage());
+            Log::error('Request data: ' . json_encode($requestData));
+            throw $e;
+        }
+    }
+    
+    public function getStoredPTSData(Request $request)
+    {
+        $query = Pts::query();
+        
+        if ($request->has('pts_id')) {
+            $query->where('pts_id', $request->pts_id);
+        }
+    
+        if ($request->has('start_date')) {
+            $query->where('request_time', '>=', $request->start_date);
+        }
+        
+        if ($request->has('end_date')) {
+            $query->where('request_time', '<=', $request->end_date);
+        }
+        
+        $page = $request->get('page', 1);
+        $data = $query->orderBy('request_time', 'desc')->paginate(null, ['*'], 'page', $page)->withPath($request->url());
 
-        file_put_contents($logFile, implode(PHP_EOL, $lines) . PHP_EOL);
+        return $this->respondOk($data, 'PTS data retrieved successfully');
     }
 }

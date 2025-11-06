@@ -24,7 +24,8 @@ class UserController extends Controller
             });
         }
 
-        $users = $query->paginate();
+        $page = $request->get('page', 1);
+        $users = $query->paginate(null, ['*'], 'page', $page)->withPath($request->url());
 
         return $this->respondOk($users, 'Users retrieved successfully');
     }

@@ -3,5 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\PTS\Http\Controllers\PTSController;
 
-Route::match(['get', 'post'], '/jsonPTS', [PTSController::class, 'handleNativePTS']);
-Route::get('/pts-logs', [PTSController::class, 'viewLogs']);
+Route::prefix('pts')->group(function () {
+    Route::get('/fetch', [PTSController::class, 'fetchAndStorePTSData']);
+    Route::get('/data', [PTSController::class, 'getStoredPTSData']);
+});
